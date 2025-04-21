@@ -20,10 +20,6 @@
             <folder-outlined />
             <span>分组管理</span>
           </a-menu-item>
-          <a-menu-item key="catalog">
-            <folder-open-outlined />
-            <span>目录管理</span>
-          </a-menu-item>
           <a-menu-item key="article">
             <file-text-outlined />
             <span>文章管理</span>
@@ -41,7 +37,7 @@
         <menu-fold-outlined v-else class="trigger" @click="() => (collapsed = !collapsed)" />
       </a-layout-header>
       <a-layout-content
-          :style="{ margin: '24px 16px', padding: '24px', background: '#fff', minHeight: '280px' }"
+          :style="{ margin: '24px 16px', padding: '24px 0 24px 24px', background: '#fff', minHeight: '280px' }"
       >
         <router-view />
       </a-layout-content>
@@ -53,7 +49,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   BookOutlined,
@@ -67,8 +63,27 @@ import type { MenuClickEventHandler } from 'ant-design-vue/es/menu/src/interface
 
 const router = useRouter()
 const collapsed = ref(false)
-const selectedKeys = ref(['group'])
+const selectedKeys = ref<string[]>([])
 const openKeys = ref(['doc-center'])
+
+// 根据当前路由设置选中的菜单项
+const setSelectedKeysFromRoute = () => {
+  const path = router.currentRoute.value.path
+  if (path.includes('/home/article')) {
+    selectedKeys.value = ['article']
+  } else if (path.includes('/home/group')) {
+    selectedKeys.value = ['group']
+  }
+}
+
+// 监听路由变化
+watch(() => router.currentRoute.value.path, () => {
+  setSelectedKeysFromRoute()
+})
+
+onMounted(() => {
+  setSelectedKeysFromRoute()
+})
 
 const handleMenuClick: MenuClickEventHandler = ({ key }) => {
   router.push(`/home/${key}`)
