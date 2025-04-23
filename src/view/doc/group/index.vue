@@ -17,8 +17,8 @@
             style="width: 120px"
             allow-clear
           >
-            <a-select-option :value="1">已发布</a-select-option>
-            <a-select-option :value="0">未发布</a-select-option>
+            <a-select-option :value="1">未发布</a-select-option>
+            <a-select-option :value="2">已发布</a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item>
@@ -51,8 +51,8 @@
     >
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'status'">
-          <a-tag :color="record.status === 1 ? 'green' : 'red'">
-            {{ record.status === 1 ? '已发布' : '未发布' }}
+          <a-tag :color="record.status === 2 ? 'green' : 'red'">
+            {{ record.status === 2 ? '已发布' : '未发布' }}
           </a-tag>
         </template>
         <template v-if="column.key === 'sort'">
@@ -62,6 +62,9 @@
           <a-space>
             <a @click="showEditModal(record)">编辑</a>
             <a-divider type="vertical" />
+            <a v-if="record.status === 1" @click="handlePublish(record)">发布</a>
+            <a v-else @click="handleUnpublish(record)">下架</a>
+            <a-divider type="vertical" />
             <a-popconfirm
               title="确定要删除这个分组吗？"
               ok-text="确定"
@@ -70,9 +73,6 @@
             >
               <a class="text-danger">删除</a>
             </a-popconfirm>
-            <a-divider type="vertical" />
-            <a v-if="record.status === 0" @click="handlePublish(record)">发布</a>
-            <a v-else @click="handleUnpublish(record)">下架</a>
           </a-space>
         </template>
       </template>
@@ -120,6 +120,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import type { TablePaginationConfig } from 'ant-design-vue'
+import axios from 'axios'
 
 interface Group {
   id: string
@@ -148,11 +149,14 @@ const columns = [
     title: '分组名称',
     dataIndex: 'name',
     key: 'name',
+    width: 200,
   },
   {
     title: '描述',
     dataIndex: 'description',
     key: 'description',
+    width: 300,
+    ellipsis: true,
   },
   {
     title: '排序',
@@ -164,11 +168,13 @@ const columns = [
     title: '状态',
     dataIndex: 'status',
     key: 'status',
+    width: 100,
   },
   {
     title: '创建时间',
     dataIndex: 'createTime',
     key: 'createTime',
+    width: 180,
   },
   {
     title: '操作',
@@ -195,7 +201,7 @@ const formState = reactive<FormState>({
 
 const rules = {
   name: [{ required: true, message: '请输入分组名称', trigger: 'blur' }],
-  description: [{ required: true, message: '请输入分组描述', trigger: 'blur' }],
+  description: [],
   sort: [{ required: true, message: '请输入排序号', trigger: 'blur' }],
 }
 
@@ -209,22 +215,41 @@ const pagination = reactive({
 const fetchGroups = async () => {
   loading.value = true
   try {
-    // TODO: 调用后端API获取分组列表，传入查询条件
-    // 模拟数据
-    dataSource.value = [
-      {
-        id: '1',
-        name: '示例分组',
-        description: '这是一个示例分组',
-        status: 1,
-        sort: 1,
-        createTime: '2024-01-01 12:00:00',
-        updateTime: '2024-01-01 12:00:00',
-      },
-    ]
-    pagination.total = 1
+    const response = await axios.get('http://127.0.0.1:8080/docCatalogGroup/page', {
+      params: {
+        name: searchForm.name || undefined, // 空字符串转为undefined
+        status: searchForm.status,
+        page: pagination.current - 1,
+        size: pagination.pageSize,
+        sort: 'sort,asc'
+      }
+    })
+    
+    if (response.data.code === 0) {
+      const pageData = response.data.data
+      dataSource.value = pageData.content.map(item => ({
+        id: item.docCatalogGroupId,
+        name: item.name,
+        description: item.description,
+        status: item.status,
+        sort: item.sort,
+        createTime: new Date(item.createTime).toLocaleString('zh-CN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        }).replace(/\//g, '-')
+      }))
+      pagination.total = pageData.totalElements
+    } else {
+      message.error(response.data.message || '获取分组列表失败')
+    }
   } catch (error) {
-    message.error('获取分组列表失败')
+    console.error('获取分组列表失败:', error)
+    message.error('获取分组列表失败，请稍后重试')
   } finally {
     loading.value = false
   }
@@ -240,7 +265,8 @@ const handleSearch = () => {
 const handleReset = () => {
   searchForm.name = ''
   searchForm.status = undefined
-  handleSearch()
+  pagination.current = 1
+  fetchGroups()
 }
 
 // 表格变化处理
@@ -274,16 +300,41 @@ const showEditModal = (record: Group) => {
 const handleModalOk = async () => {
   try {
     await formRef.value.validate()
-    // TODO: 调用后端API保存分组
     if (modalType.value === 'create') {
-      message.success('创建成功')
+      // 创建分组
+      const response = await axios.post('http://127.0.0.1:8080/docCatalogGroup/add', {
+        name: formState.name,
+        description: formState.description,
+        sort: formState.sort
+      })
+      
+      if (response.data.code === 0) {
+        message.success('创建成功')
+        modalVisible.value = false
+        fetchGroups()
+      } else {
+        message.error(response.data.message || '创建失败')
+      }
     } else {
-      message.success('更新成功')
+      // 更新分组
+      const response = await axios.post('http://127.0.0.1:8080/docCatalogGroup/updateById', {
+        docCatalogGroupId: formState.id,
+        name: formState.name,
+        description: formState.description,
+        sort: formState.sort
+      })
+      
+      if (response.data.code === 0) {
+        message.success('更新成功')
+        modalVisible.value = false
+        fetchGroups()
+      } else {
+        message.error(response.data.message || '更新失败')
+      }
     }
-    modalVisible.value = false
-    fetchGroups()
   } catch (error) {
-    console.error('表单验证失败:', error)
+    console.error('操作失败:', error)
+    message.error('操作失败，请稍后重试')
   }
 }
 
@@ -295,33 +346,59 @@ const handleModalCancel = () => {
 // 删除分组
 const handleDelete = async (record: Group) => {
   try {
-    // TODO: 调用后端API删除分组
-    message.success('删除成功')
-    fetchGroups()
+    const response = await axios.post('http://127.0.0.1:8080/docCatalogGroup/deleteById', {
+      docCatalogGroupId: record.id
+    })
+    
+    if (response.data.code === 0) {
+      message.success('删除成功')
+      fetchGroups()
+    } else {
+      message.error(response.data.message || '删除失败')
+    }
   } catch (error) {
-    message.error('删除失败')
+    console.error('删除失败:', error)
+    message.error('删除失败，请稍后重试')
   }
 }
 
 // 发布分组
 const handlePublish = async (record: Group) => {
   try {
-    // TODO: 调用后端API发布分组
-    message.success('发布成功')
-    fetchGroups()
+    const response = await axios.post('http://127.0.0.1:8080/docCatalogGroup/update/status', {
+      docCatalogGroupId: record.id,
+      status: 2
+    })
+    
+    if (response.data.code === 0) {
+      message.success('发布成功')
+      fetchGroups()
+    } else {
+      message.error(response.data.message || '发布失败')
+    }
   } catch (error) {
-    message.error('发布失败')
+    console.error('发布失败:', error)
+    message.error('发布失败，请稍后重试')
   }
 }
 
 // 下架分组
 const handleUnpublish = async (record: Group) => {
   try {
-    // TODO: 调用后端API下架分组
-    message.success('下架成功')
-    fetchGroups()
+    const response = await axios.post('http://127.0.0.1:8080/docCatalogGroup/update/status', {
+      docCatalogGroupId: record.id,
+      status: 1
+    })
+    
+    if (response.data.code === 0) {
+      message.success('下架成功')
+      fetchGroups()
+    } else {
+      message.error(response.data.message || '下架失败')
+    }
   } catch (error) {
-    message.error('下架失败')
+    console.error('下架失败:', error)
+    message.error('下架失败，请稍后重试')
   }
 }
 
