@@ -116,7 +116,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import type { TablePaginationConfig } from 'ant-design-vue'
@@ -300,6 +300,12 @@ const showEditModal = (record: Group) => {
 const handleModalOk = async () => {
   try {
     await formRef.value.validate()
+  } catch (error) {
+    // 表单校验失败，直接返回
+    return
+  }
+
+  try {
     if (modalType.value === 'create') {
       // 创建分组
       const response = await axios.post('http://127.0.0.1:8080/docCatalogGroup/add', {
@@ -309,7 +315,7 @@ const handleModalOk = async () => {
       })
       
       if (response.data.code === 0) {
-        message.success('创建成功')
+      message.success('创建成功')
         modalVisible.value = false
         fetchGroups()
       } else {
@@ -325,9 +331,9 @@ const handleModalOk = async () => {
       })
       
       if (response.data.code === 0) {
-        message.success('更新成功')
-        modalVisible.value = false
-        fetchGroups()
+      message.success('更新成功')
+    modalVisible.value = false
+    fetchGroups()
       } else {
         message.error(response.data.message || '更新失败')
       }
@@ -341,6 +347,10 @@ const handleModalOk = async () => {
 // 处理弹窗取消
 const handleModalCancel = () => {
   modalVisible.value = false
+  // 清空表单校验错误
+  nextTick(() => {
+    formRef.value?.clearValidate()
+  })
 }
 
 // 删除分组
@@ -351,8 +361,8 @@ const handleDelete = async (record: Group) => {
     })
     
     if (response.data.code === 0) {
-      message.success('删除成功')
-      fetchGroups()
+    message.success('删除成功')
+    fetchGroups()
     } else {
       message.error(response.data.message || '删除失败')
     }
@@ -371,8 +381,8 @@ const handlePublish = async (record: Group) => {
     })
     
     if (response.data.code === 0) {
-      message.success('发布成功')
-      fetchGroups()
+    message.success('发布成功')
+    fetchGroups()
     } else {
       message.error(response.data.message || '发布失败')
     }
@@ -391,8 +401,8 @@ const handleUnpublish = async (record: Group) => {
     })
     
     if (response.data.code === 0) {
-      message.success('下架成功')
-      fetchGroups()
+    message.success('下架成功')
+    fetchGroups()
     } else {
       message.error(response.data.message || '下架失败')
     }

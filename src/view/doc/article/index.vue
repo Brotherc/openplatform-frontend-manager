@@ -22,17 +22,29 @@
                 </a-button>
                 <template #overlay>
                   <a-menu>
-                    <a-menu-item key="create" @click="showCreateModal">新增</a-menu-item>
-                    <a-menu-item key="publish" :disabled="checkedKeys.length === 0" @click="handlePublish">发布</a-menu-item>
-                    <a-menu-item key="unpublish" :disabled="checkedKeys.length === 0" @click="handleUnpublish">下架</a-menu-item>
+                    <a-menu-item key="create" @click="showCreateModal">
+                      <plus-outlined />
+                      新增
+                    </a-menu-item>
+                    <a-menu-item key="publish" :disabled="checkedKeys.length === 0" @click="() => handlePublish(checkedKeys)">
+                      <check-circle-outlined />
+                      发布
+                    </a-menu-item>
+                    <a-menu-item key="unpublish" :disabled="checkedKeys.length === 0" @click="() => handleUnpublish(checkedKeys)">
+                      <close-circle-outlined />
+                      下架
+                    </a-menu-item>
                     <a-menu-item :disabled="checkedKeys.length === 0">
                       <a-popconfirm
                         title="确定要删除选中的节点吗？"
                         ok-text="确定"
                         cancel-text="取消"
-                        @confirm="handleGroupDelete"
+                        @confirm="() => handleDelete(checkedKeys)"
                       >
-                        <span>删除</span>
+                        <span>
+                          <delete-outlined />
+                          删除
+                        </span>
                       </a-popconfirm>
                     </a-menu-item>
                   </a-menu>
@@ -46,59 +58,69 @@
               v-model:checkedKeys="checkedKeys"
               :tree-data="treeData"
               :checkable="true"
-              :show-line="true"
+              :block-node="true"
+              :show-title="true"
               @select="onSelect"
               @check="onCheck"
             >
-              <template #title="{ title, type, status }">
+              <template #title="{ title, type, status, dataRef }">
                 <div class="tree-node-content">
+                  <folder-outlined v-if="type === 1" style="margin-right: 8px" />
+                  <file-outlined v-else style="margin-right: 8px" />
+                  <span class="node-title" :title="title">{{ title }}</span>
                   <span class="node-status">
-                    <a-tag v-if="status === 1" color="success">已发布</a-tag>
+                    <a-tag v-if="status === 2" color="success">已发布</a-tag>
                     <a-tag v-else color="error">未发布</a-tag>
                   </span>
-                  <span class="node-title">{{ title }}</span>
-                  <a-dropdown v-if="type !== 'group'" :trigger="['click']">
-                    <a class="ant-dropdown-link" @click.prevent>
-                      <more-outlined />
-                    </a>
-                    <template #overlay>
-                      <a-menu>
-                        <a-menu-item key="edit" @click="handleEdit">
-                          <edit-outlined />
-                          编辑
-                        </a-menu-item>
-                        <a-menu-item key="publish" @click="() => {
-                          message.success('发布成功');
-                          handlePublish([node.key]);
-                        }">
-                          <check-circle-outlined />
-                          发布
-                        </a-menu-item>
-                        <a-menu-item key="unpublish" @click="() => {
-                          message.success('下架成功');
-                          handleUnpublish([node.key]);
-                        }">
-                          <close-circle-outlined />
-                          下架
-                        </a-menu-item>
-                        <a-popconfirm
-                          v-model:visible="deleteConfirmVisible"
-                          title="确定要删除这个节点吗？"
-                          ok-text="确定"
-                          cancel-text="取消"
-                          @confirm="() => {
-                            message.success('删除成功');
-                            handleDelete([node.key]);
-                          }"
-                        >
-                          <a-menu-item key="delete">
-                            <delete-outlined />
-                            删除
+                  <div class="node-actions" @click.stop>
+                    <a-dropdown v-if="type !== 'group'" :trigger="['click']">
+                      <a class="ant-dropdown-link" @click.prevent.stop>
+                        <more-outlined />
+                      </a>
+                      <template #overlay>
+                        <a-menu>
+                          <a-menu-item key="edit" @click="() => {
+                            console.log('Edit clicked, dataRef:', dataRef);
+                            handleEdit(dataRef);
+                            selectedKeys.value = [dataRef.key];
+                          }">
+                            <edit-outlined />
+                            编辑
                           </a-menu-item>
-                        </a-popconfirm>
-                      </a-menu>
-                    </template>
-                  </a-dropdown>
+                          <a-menu-item key="publish" @click="() => {
+                            handlePublish([dataRef.key]);
+                            selectedKeys.value = [dataRef.key];
+                          }">
+                            <check-circle-outlined />
+                            发布
+                          </a-menu-item>
+                          <a-menu-item key="unpublish" @click="() => {
+                            handleUnpublish([dataRef.key]);
+                            selectedKeys.value = [dataRef.key];
+                          }">
+                            <close-circle-outlined />
+                            下架
+                          </a-menu-item>
+                          <a-popconfirm
+                            v-model:visible="deleteConfirmVisible"
+                            title="确定要删除这个节点吗？"
+                            ok-text="确定"
+                            cancel-text="取消"
+                            @confirm="() => {
+                              handleSingleDelete(dataRef.key);
+                              selectedKeys.value = [];
+                              selectedArticle.value = null;
+                            }"
+                          >
+                            <a-menu-item key="delete">
+                              <delete-outlined />
+                              删除
+                            </a-menu-item>
+                          </a-popconfirm>
+                        </a-menu>
+                      </template>
+                    </a-dropdown>
+                  </div>
                 </div>
               </template>
             </a-tree>
@@ -114,7 +136,6 @@
               <h2>{{ selectedArticle.title }}</h2>
               <div class="editor-actions">
                 <a-button type="primary" @click="handleSave">保存</a-button>
-                <a-button @click="handlePreview">预览</a-button>
               </div>
             </a-space>
           </div>
@@ -143,6 +164,12 @@
         :rules="rules"
         layout="vertical"
       >
+        <a-form-item label="类型" name="type">
+          <a-radio-group v-model:value="formState.type" :disabled="modalType === 'edit'">
+            <a-radio :value="1">目录</a-radio>
+            <a-radio :value="2">文章</a-radio>
+          </a-radio-group>
+        </a-form-item>
         <a-form-item label="父级节点" name="parentId">
           <a-tree-select
             v-model:value="formState.parentId"
@@ -171,11 +198,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, onMounted, watch, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
-import { PlusOutlined, EllipsisOutlined, CheckCircleOutlined, CloseCircleOutlined, FolderOutlined, FolderOpenOutlined, EditOutlined, DeleteOutlined, MoreOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, EllipsisOutlined, CheckCircleOutlined, CloseCircleOutlined, FolderOutlined, FolderOpenOutlined, FileOutlined, EditOutlined, DeleteOutlined, MoreOutlined } from '@ant-design/icons-vue'
 import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
+import axios from 'axios'
 
 interface Group {
   id: string
@@ -185,7 +213,7 @@ interface Group {
 interface TreeNode {
   key: string
   title: string
-  type: 'directory' | 'article'
+  type: 1 | 2  // 1-目录，2-文章
   children?: TreeNode[]
   parentKey?: string
   sort: number
@@ -196,16 +224,17 @@ interface Article {
   id: string
   title: string
   content: string
-  type: 'directory' | 'article'
+  type: 1 | 2  // 1-目录，2-文章
   parentId?: string
   sort: number
 }
 
 interface FormState {
-  type: 'directory' | 'article'
+  type: 1 | 2  // 1-目录，2-文章
   title: string
   sort: number
   parentId?: string
+  docCatalogId?: string  // 添加主键字段
 }
 
 // 状态定义
@@ -221,7 +250,7 @@ const formRef = ref()
 const deleteConfirmVisible = ref(false)
 
 const formState = reactive<FormState>({
-  type: 'article',
+  type: 2,  // 默认创建文章
   title: '',
   sort: 0,
 })
@@ -236,16 +265,23 @@ const rules = {
 // 获取分组列表
 const fetchGroups = async () => {
   try {
-    // TODO: 调用后端API获取分组列表
-    groups.value = [
-      { id: '1', name: '示例分组' },
-    ]
-    // 自动选择第一个分组
-    if (groups.value.length > 0 && !selectedGroup.value) {
-      selectedGroup.value = groups.value[0].id
+    const response = await axios.get('http://127.0.0.1:8080/docCatalogGroup/getList')
+    
+    if (response.data.code === 0) {
+      groups.value = response.data.data.map(item => ({
+        id: item.docCatalogGroupId,
+        name: item.name
+      }))
+      // 自动选择第一个分组
+      if (groups.value.length > 0 && !selectedGroup.value) {
+        selectedGroup.value = groups.value[0].id
+      }
+    } else {
+      message.error(response.data.message || '获取分组列表失败')
     }
   } catch (error) {
-    message.error('获取分组列表失败')
+    console.error('获取分组列表失败:', error)
+    message.error('获取分组列表失败，请稍后重试')
   }
 }
 
@@ -253,27 +289,20 @@ const fetchGroups = async () => {
 const fetchDocTree = async () => {
   if (!selectedGroup.value) return
   try {
-    // TODO: 调用后端API获取文档树
-    treeData.value = [
-      {
-        key: '1',
-        title: '示例目录',
-        type: 'directory',
-        sort: 1,
-        status: 1,
-        children: [
-          {
-            key: '2',
-            title: '示例文章',
-            type: 'article',
-            sort: 1,
-            status: 1,
-          },
-        ],
-      },
-    ]
+    const response = await axios.get('http://127.0.0.1:8080/docCatalog/getTree', {
+      params: {
+        docCatalogGroupId: selectedGroup.value
+      }
+    })
+    
+    if (response.data.code === 0) {
+      treeData.value = response.data.data
+    } else {
+      message.error(response.data.message || '获取文档树失败')
+    }
   } catch (error) {
-    message.error('获取文档树失败')
+    console.error('获取文档树失败:', error)
+    message.error('获取文档树失败，请稍后重试')
   }
 }
 
@@ -294,21 +323,36 @@ const handleGroupChange = (value: string) => {
 
 // 选择节点
 const onSelect = async (selectedKeys: string[], info: any) => {
-  if (selectedKeys.length === 0) return
+  if (selectedKeys.length === 0) {
+    selectedArticle.value = null;
+    return;
+  }
   const node = info.node
-  if (node.type === 'article') {
+  if (node.dataRef.type === 2) {  // 2 表示文章
     try {
-      // TODO: 调用后端API获取文章详情
-      selectedArticle.value = {
-        id: node.key,
-        title: node.title,
-        content: '# 示例文章\n这是一篇示例文章的内容',
-        type: 'article',
-        sort: node.sort,
-        parentId: node.parentKey,
+      const response = await axios.get('http://127.0.0.1:8080/docCatalog/getDocumentById', {
+        params: {
+          id: node.dataRef.key
+        }
+      })
+      
+      if (response.data.code === 0) {
+        selectedArticle.value = {
+          id: node.dataRef.key,
+          title: node.dataRef.title,
+          content: response.data.data.content || '',
+          type: 2,
+          sort: node.dataRef.sort,
+          parentId: node.dataRef.parentKey,
+        }
+      } else {
+        message.error(response.data.message || '获取文章详情失败')
+        selectedArticle.value = null;
       }
     } catch (error) {
-      message.error('获取文章详情失败')
+      console.error('获取文章详情失败:', error)
+      message.error('获取文章详情失败，请稍后重试')
+      selectedArticle.value = null;
     }
   } else {
     selectedArticle.value = null
@@ -328,49 +372,76 @@ const showCreateModal = () => {
     return
   }
   modalType.value = 'create'
-  formState.type = 'article'
+  // 重置所有表单字段
+  formState.type = 2  // 默认创建文章
   formState.title = ''
   formState.sort = 0
-  formState.parentId = selectedKeys.value[0]
+  formState.parentId = undefined
   modalVisible.value = true
 }
 
 // 处理编辑
-const handleEdit = (node: { key: string; title: string; type: 'directory' | 'article'; parentKey?: string; sort: number }) => {
-  modalType.value = 'edit'
-  formState.title = node.title
-  formState.sort = node.sort
-  formState.parentId = node.parentKey
-  formState.type = node.type
-  modalVisible.value = true
-  // 如果是文章节点，同时加载文章内容
-  if (node.type === 'article') {
-    try {
-      // TODO: 调用后端API获取文章详情
-      selectedArticle.value = {
-        id: node.key,
-        title: node.title,
-        content: '# 示例文章\n这是一篇示例文章的内容',
-        type: 'article',
-        sort: node.sort,
-        parentId: node.parentKey,
-      }
-    } catch (error) {
-      message.error('获取文章详情失败')
-    }
-  } else {
-    selectedArticle.value = null
+const handleEdit = (node: any) => {
+  console.log('handleEdit called with node:', node);
+  if (!node) {
+    console.error('No node data provided');
+    return;
   }
+  
+  modalType.value = 'edit';
+  formState.docCatalogId = node.key;  // 设置主键
+  formState.title = node.title;
+  formState.sort = node.sort;
+  formState.parentId = node.parentKey;
+  formState.type = node.type;
+  modalVisible.value = true;
+  console.log('Form state after setting:', formState);
 }
 
 // 处理删除
-const handleDelete = (keys: string[]) => {
+const handleDelete = async (keys: string[]) => {
   if (!selectedGroup.value) {
     message.warning('请先选择分组')
     return
   }
-  // TODO: 实现删除功能
-  console.log('Deleting node with key:', keys)
+  try {
+    const response = await axios.post('http://127.0.0.1:8080/docCatalog/deleteByIdList', {
+      docCatalogIdList: keys
+    })
+    
+    if (response.data.code === 0) {
+      message.success('删除成功')
+      fetchDocTree()
+    } else {
+      message.error(response.data.message || '删除失败')
+    }
+  } catch (error) {
+    console.error('删除失败:', error)
+    message.error('删除失败，请稍后重试')
+  }
+}
+
+// 处理单个删除
+const handleSingleDelete = async (key: string) => {
+  if (!selectedGroup.value) {
+    message.warning('请先选择分组')
+    return
+  }
+  try {
+    const response = await axios.post('http://127.0.0.1:8080/docCatalog/deleteById', {
+      docCatalogId: key
+    })
+    
+    if (response.data.code === 0) {
+      message.success('删除成功')
+      fetchDocTree()
+    } else {
+      message.error(response.data.message || '删除失败')
+    }
+  } catch (error) {
+    console.error('删除失败:', error)
+    message.error('删除失败，请稍后重试')
+  }
 }
 
 // 处理分组删除
@@ -392,58 +463,127 @@ const handleGroupDelete = async () => {
 const handleSave = async () => {
   if (!selectedArticle.value) return
   try {
-    // TODO: 调用后端API保存文章
-    message.success('保存成功')
+    const response = await axios.post('http://127.0.0.1:8080/docCatalog/saveDocument', {
+      docCatalogId: selectedArticle.value.id,
+      content: selectedArticle.value.content
+    })
+    
+    if (response.data.code === 0) {
+      message.success('保存成功')
+    } else {
+      message.error(response.data.message || '保存失败')
+    }
   } catch (error) {
-    message.error('保存失败')
+    console.error('保存失败:', error)
+    message.error('保存失败，请稍后重试')
   }
-}
-
-// 处理预览
-const handlePreview = () => {
-  // TODO: 实现预览功能
 }
 
 // 处理弹窗确认
 const handleModalOk = async () => {
   try {
     await formRef.value.validate()
-    // TODO: 调用后端API保存节点
-    if (modalType.value === 'create') {
-      message.success('创建成功')
-    } else {
-      message.success('更新成功')
-    }
-    modalVisible.value = false
-    fetchDocTree()
   } catch (error) {
-    console.error('表单验证失败:', error)
+    // 表单校验失败，直接返回
+    return
+  }
+
+  try {
+    if (modalType.value === 'create') {
+      // 创建节点
+      const response = await axios.post('http://127.0.0.1:8080/docCatalog/add', {
+        name: formState.title,
+        docCatalogGroupId: selectedGroup.value,
+        parentId: formState.parentId,
+        type: formState.type,
+        sort: formState.sort
+      })
+      
+      if (response.data.code === 0) {
+        message.success('创建成功')
+        modalVisible.value = false
+        fetchDocTree()
+      } else {
+        message.error(response.data.message || '创建失败')
+      }
+    } else {
+      // 更新节点
+      const response = await axios.post('http://127.0.0.1:8080/docCatalog/updateById', {
+        docCatalogId: formState.docCatalogId,  // 使用正确的主键
+        name: formState.title,
+        parentId: formState.parentId,
+        sort: formState.sort
+      })
+      
+      if (response.data.code === 0) {
+        message.success('更新成功')
+        modalVisible.value = false
+        fetchDocTree()
+      } else {
+        message.error(response.data.message || '更新失败')
+      }
+    }
+  } catch (error) {
+    console.error('操作失败:', error)
+    message.error('操作失败，请稍后重试')
   }
 }
 
 // 处理弹窗取消
 const handleModalCancel = () => {
   modalVisible.value = false
+  // 清空表单校验错误
+  nextTick(() => {
+    formRef.value?.clearValidate()
+  })
 }
 
 // 处理发布
-const handlePublish = (keys: string[]) => {
+const handlePublish = async (keys: string[]) => {
   if (!selectedGroup.value) {
     message.warning('请先选择分组')
     return
   }
-  // TODO: 实现发布功能
-  message.success('发布成功')
+  try {
+    const response = await axios.post('http://127.0.0.1:8080/docCatalog/update/status/batch', {
+      docCatalogIdList: keys,
+      status: 2
+    })
+    
+    if (response.data.code === 0) {
+      message.success('发布成功')
+      fetchDocTree()
+    } else {
+      message.error(response.data.message || '发布失败')
+    }
+  } catch (error) {
+    console.error('发布失败:', error)
+    message.error('发布失败，请稍后重试')
+  }
 }
 
 // 处理下架
-const handleUnpublish = (keys: string[]) => {
+const handleUnpublish = async (keys: string[]) => {
   if (!selectedGroup.value) {
     message.warning('请先选择分组')
     return
   }
-  // TODO: 实现下架功能
-  message.success('下架成功')
+  try {
+    const response = await axios.post('http://127.0.0.1:8080/docCatalog/update/status/batch', {
+      docCatalogIdList: keys,
+      status: 1
+    })
+    
+    if (response.data.code === 0) {
+      message.success('下架成功')
+      fetchDocTree()
+    } else {
+      message.error(response.data.message || '下架失败')
+    }
+  } catch (error) {
+    console.error('下架失败:', error)
+    message.error('下架失败，请稍后重试')
+  }
 }
 
 onMounted(() => {
@@ -537,36 +677,29 @@ onMounted(() => {
 
 :deep(.ant-tree-node-content-wrapper) {
   flex: 1;
-}
-
-:deep(.ant-tree-node-content-wrapper:hover) {
-  background-color: #f5f5f5 !important;
-}
-
-:deep(.ant-select) {
-  width: 200px;
-  flex-shrink: 0;
-}
-
-:deep(.ant-tree-checkbox) {
-  margin-right: 8px;
-}
-
-:deep(.ant-tree-node-content-wrapper) {
-  padding: 0 4px;
+  min-width: 0;
 }
 
 .tree-node-content {
   display: flex;
   align-items: center;
-  gap: 8px;
   width: 100%;
 }
 
+.node-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .node-status {
-  display: flex;
-  align-items: center;
-  min-width: 60px;
+  margin-left: auto;
+  padding: 0 8px;
+}
+
+.node-actions {
+  padding-left: 8px;
 }
 
 .node-status :deep(.ant-tag) {
@@ -577,11 +710,39 @@ onMounted(() => {
   font-size: 12px;
 }
 
-.node-title {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+:deep(.ant-dropdown-link) {
+  color: rgba(0, 0, 0, 0.45);
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+:deep(.ant-dropdown-link:hover) {
+  color: #1890ff;
+}
+
+:deep(.ant-tree-indent-unit) {
+  width: 24px;
+}
+
+:deep(.ant-tree-switcher) {
+  width: 24px;
+}
+
+:deep(.ant-tree-switcher-icon) {
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 16px;
+}
+
+:deep(.ant-tree-checkbox) {
+  margin: 0;
+  margin-right: 8px;
+}
+
+:deep(.ant-select) {
+  width: 200px;
+  flex-shrink: 0;
 }
 
 :deep(.ant-row) {
