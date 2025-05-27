@@ -3,6 +3,7 @@ import Home from '../view/home.vue'
 import Login from '../view/login.vue'
 import GroupManage from '../view/doc/group/index.vue'
 import ArticleManage from '../view/doc/article/index.vue'
+import ApiManage from '../view/api/manage/index.vue'
 
 const routes = [{
     path: '/',
@@ -22,6 +23,11 @@ const routes = [{
             path: 'article',
             name: 'ArticleManage',
             component: ArticleManage
+        },
+        {
+            path: 'api-manage',
+            name: 'ApiManage',
+            component: ApiManage
         }
     ]
 },{

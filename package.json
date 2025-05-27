@@ -14,7 +14,9 @@
     "axios": "^1.8.4",
     "md-editor-v3": "^5.5.0",
     "vue": "^3.3.8",
-    "vue-router": "^4.5.0"
+    "vue-router": "^4.5.0",
+    "vxe-table": "^4.13.31",
+    "xe-utils": "^3.7.4"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^4.5.0",

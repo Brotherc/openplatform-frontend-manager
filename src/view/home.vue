@@ -25,6 +25,18 @@
             <span>文章管理</span>
           </a-menu-item>
         </a-sub-menu>
+        <a-sub-menu key="api-center">
+          <template #title>
+            <span>
+              <api-outlined />
+              <span>API中心</span>
+            </span>
+          </template>
+          <a-menu-item key="api-manage">
+            <code-outlined />
+            <span>API管理</span>
+          </a-menu-item>
+        </a-sub-menu>
       </a-menu>
     </a-layout-sider>
     <a-layout>
@@ -57,7 +69,9 @@ import {
   FolderOpenOutlined,
   FileTextOutlined,
   MenuUnfoldOutlined,
-  MenuFoldOutlined
+  MenuFoldOutlined,
+  ApiOutlined,
+  CodeOutlined
 } from '@ant-design/icons-vue'
 import type { MenuClickEventHandler } from 'ant-design-vue/es/menu/src/interface'
 
