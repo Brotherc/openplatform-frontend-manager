@@ -16,11 +16,11 @@
                 </a-button>
                 <template #overlay>
                   <a-menu>
-                    <a-menu-item key="publish" :disabled="checkedKeys.length === 0" @click="() => handlePublish(checkedKeys)">
+                    <a-menu-item key="publish" :disabled="checkedKeys.length === 0 || hasCategoryNode" @click="() => handlePublish(checkedKeys)">
                       <check-circle-outlined />
                       发布
                     </a-menu-item>
-                    <a-menu-item key="unpublish" :disabled="checkedKeys.length === 0" @click="() => handleUnpublish(checkedKeys)">
+                    <a-menu-item key="unpublish" :disabled="checkedKeys.length === 0 || hasCategoryNode" @click="() => handleUnpublish(checkedKeys)">
                       <close-circle-outlined />
                       下架
                     </a-menu-item>
@@ -57,6 +57,9 @@
                   <folder-outlined v-if="type === 1" style="margin-right: 8px" />
                   <api-outlined v-else style="margin-right: 8px" />
                   <span class="node-title" :title="title">{{ title }}</span>
+                  <a-tag v-if="type === 2" :color="dataRef.status === 2 ? 'success' : 'error'" style="margin-left: 8px">
+                    {{ dataRef.status === 2 ? '已发布' : '未发布' }}
+                  </a-tag>
                   <div class="node-actions" @click.stop>
                     <a-dropdown :trigger="['click']">
                       <a class="ant-dropdown-link" @click.prevent.stop>
@@ -68,11 +71,11 @@
                             <edit-outlined />
                             编辑
                           </a-menu-item>
-                          <a-menu-item key="publish" @click="() => handlePublish([dataRef.key])">
+                          <a-menu-item key="publish" @click="() => handlePublish([dataRef.key])" :disabled="dataRef.type === 1">
                             <check-circle-outlined />
                             发布
                           </a-menu-item>
-                          <a-menu-item key="unpublish" @click="() => handleUnpublish([dataRef.key])">
+                          <a-menu-item key="unpublish" @click="() => handleUnpublish([dataRef.key])" :disabled="dataRef.type === 1">
                             <close-circle-outlined />
                             下架
                           </a-menu-item>
@@ -433,7 +436,7 @@
     <!-- 创建/编辑弹窗 -->
     <a-modal
       v-model:visible="modalVisible"
-      :title="modalType === 'create' ? '新建' : '编辑'"
+      :title="modalType === 'create' ? '新增' : '编辑'"
       @ok="handleModalOk"
       @cancel="handleModalCancel"
       okText="确定"
@@ -446,48 +449,41 @@
         layout="vertical"
       >
         <a-form-item label="类型" name="type">
-          <a-radio-group v-model:value="formState.type" :disabled="modalType === 'edit'">
-            <a-radio :value="1">模块</a-radio>
-            <a-radio :value="2">API</a-radio>
-          </a-radio-group>
+          <a-select 
+            v-model:value="formState.type" 
+            placeholder="请选择类型"
+            :disabled="modalType === 'edit'"
+          >
+            <a-select-option :value="1">分类</a-select-option>
+            <a-select-option :value="2">API</a-select-option>
+          </a-select>
         </a-form-item>
-        <a-form-item label="父级节点" name="parentId">
+        <a-form-item label="名称" name="name">
+          <a-input v-model:value="formState.name" placeholder="请输入名称" />
+        </a-form-item>
+        <a-form-item label="父级" name="parentId">
           <a-tree-select
             v-model:value="formState.parentId"
-            style="width: 100%"
-            :dropdown-style="{ maxHeight: '400px', overflow: 'auto' }"
-            :tree-data="treeData"
-            placeholder="请选择父级节点"
-            :field-names="{ label: 'title', value: 'key', children: 'children' }"
+            :tree-data="filteredTreeData"
+            placeholder="请选择父级"
+            :field-names="{ 
+              label: 'title', 
+              value: 'value', 
+              children: 'children' 
+            }"
             :tree-default-expand-all="true"
-            allowClear
+            allow-clear
+            :dropdown-style="{ maxHeight: '400px', overflow: 'auto' }"
+            style="width: 100%"
           />
         </a-form-item>
-        <a-form-item label="排序" name="sort">
-          <a-input-number
-            v-model:value="formState.sort"
-            :min="0"
-            placeholder="请输入排序号"
-          />
-        </a-form-item>
-        <template v-if="formState.type === 2">
-          <a-form-item label="名称" name="name">
-            <a-input v-model:value="formState.name" placeholder="请输入名称" />
-          </a-form-item>
-          <a-form-item label="中文名称" name="nameCn">
-            <a-input v-model:value="formState.nameCn" placeholder="请输入中文名称" />
-          </a-form-item>
-          <a-form-item label="描述" name="description">
-            <a-textarea v-model:value="formState.description" placeholder="请输入描述" />
-          </a-form-item>
-        </template>
       </a-form>
     </a-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import {
   PlusOutlined,
@@ -503,6 +499,9 @@ import {
 import axios from 'axios'
 import { VxeUI, VxeTableInstance } from 'vxe-table'
 
+// 配置axios默认值
+axios.defaults.baseURL = 'http://127.0.0.1:8080'
+
 interface TreeNode {
   key: string
   title: string
@@ -516,14 +515,14 @@ interface TreeNode {
 }
 
 interface FormState {
-  type: 1 | 2
+  id: string | undefined
+  type: 1 | 2 | undefined
   title: string
   sort: number
   parentId?: string
   name?: string
   nameCn?: string
   description?: string
-  id?: string
 }
 
 interface ApiForm {
@@ -553,11 +552,17 @@ const modalVisible = ref(false)
 const modalType = ref<'create' | 'edit'>('create')
 const formRef = ref()
 const activeKey = ref('queryParam')
+const currentNode = ref<TreeNode | null>(null)
 
 const formState = reactive<FormState>({
-  type: 1,
+  id: undefined,
+  type: undefined,
   title: '',
-  sort: 0
+  sort: 0,
+  parentId: undefined,
+  name: '',
+  nameCn: '',
+  description: ''
 })
 
 const apiForm = reactive<ApiForm>({
@@ -569,11 +574,8 @@ const apiForm = reactive<ApiForm>({
 })
 
 const rules = {
-  type: [{ required: true, message: '请选择类型' }],
-  title: [{ required: true, message: '请输入标题' }],
-  sort: [{ required: true, message: '请输入排序号' }],
   name: [{ required: true, message: '请输入名称' }],
-  nameCn: [{ required: true, message: '请输入中文名称' }]
+  type: [{ required: true, message: '请选择类型' }]
 }
 
 const paramRules = {
@@ -817,33 +819,31 @@ const onTypeChange = (type: string, row: RowVO, value: string) => {
 }
 
 
-// 获取模块树
+// 获取树数据
 const fetchTree = async () => {
   try {
-    // TODO: 调用后端API获取树数据
-    // 模拟数据
-    treeData.value = [
-      {
-        key: '1',
-        title: '用户模块',
-        type: 1,
-        sort: 1,
-        children: [
-          {
-            key: '1-1',
-            title: '获取用户信息',
-            type: 2,
-            sort: 1,
-            name: 'getUserInfo',
-            nameCn: '获取用户信息',
-            description: '获取当前登录用户的信息'
-          }
-        ]
+    const response = await axios.get('/apiInfoCategory/getTree')
+    if (response.data && response.data.code === 0) {
+      // 处理返回的数据，确保符合树形结构要求
+      const processTreeData = (data: any[]) => {
+        return data.map(item => ({
+          key: String(item.key), // 转换为字符串
+          value: String(item.key), // 用于树形选择器的值
+          title: item.title,
+          type: item.type,
+          status: item.status,
+          parentKey: item.parentKey, // 保存原始的parentKey
+          children: item.children ? processTreeData(item.children) : undefined
+        }))
       }
-    ]
+      treeData.value = processTreeData(response.data.data)
+      console.log('树形数据:', treeData.value) // 添加日志查看树形数据
+    } else {
+      message.error(response.data.message || '获取树数据失败')
+    }
   } catch (error) {
-    console.error('获取模块树失败:', error)
-    message.error('获取模块树失败，请稍后重试')
+    console.error('获取树数据失败:', error)
+    message.error('获取树数据失败，请稍后重试')
   }
 }
 
@@ -865,36 +865,35 @@ const onSelect = (selectedKeys: string[], info: any) => {
 // 显示创建弹窗
 const showCreateModal = () => {
   modalType.value = 'create'
+  formState.id = undefined
   formState.type = 1
-  formState.title = ''
-  formState.sort = 0
-  formState.parentId = undefined
   formState.name = ''
-  formState.nameCn = ''
-  formState.description = ''
+  formState.parentId = undefined
   modalVisible.value = true
 }
 
 // 处理编辑
 const handleEdit = (node: any) => {
   modalType.value = 'edit'
-  formState.id = node.key
+  currentNode.value = node
   formState.type = node.type
-  formState.title = node.title
-  formState.sort = node.sort
-  formState.parentId = node.parentKey
-  formState.name = node.name
-  formState.nameCn = node.nameCn
-  formState.description = node.description
+  formState.name = node.title
+  formState.parentId = node.parentId
   modalVisible.value = true
 }
 
 // 处理删除
 const handleDelete = async (key: string) => {
   try {
-    // TODO: 调用后端API删除
-    message.success('删除成功')
-    fetchTree()
+    const response = await axios.post('/apiInfoCategory/deleteById', {
+      apiInfoCategoryId: Number(key)
+    })
+    if (response.data && response.data.code === 0) {
+      message.success('删除成功')
+      fetchTree()
+    } else {
+      message.error(response.data.message || '删除失败')
+    }
   } catch (error) {
     console.error('删除失败:', error)
     message.error('删除失败，请稍后重试')
@@ -911,14 +910,33 @@ const handleModalOk = async () => {
 
   try {
     if (modalType.value === 'create') {
-      // TODO: 调用后端API创建
-      message.success('创建成功')
+      const response = await axios.post('/apiInfoCategory/add', {
+        name: formState.name,
+        parentId: formState.parentId ? Number(formState.parentId) : 0,
+        type: formState.type
+      })
+      if (response.data && response.data.code === 0) {
+        message.success('创建成功')
+        modalVisible.value = false
+        fetchTree()
+      } else {
+        message.error(response.data.message || '创建失败')
+      }
     } else {
-      // TODO: 调用后端API更新
-      message.success('更新成功')
+      // 编辑接口调用
+      const response = await axios.post('/apiInfoCategory/updateById', {
+        apiInfoCategoryId: Number(formState.id),
+        name: formState.name,
+        parentId: formState.parentId ? Number(formState.parentId) : 0
+      })
+      if (response.data && response.data.code === 0) {
+        message.success('更新成功')
+        modalVisible.value = false
+        fetchTree()
+      } else {
+        message.error(response.data.message || '更新失败')
+      }
     }
-    modalVisible.value = false
-    fetchTree()
   } catch (error) {
     console.error('操作失败:', error)
     message.error('操作失败，请稍后重试')
@@ -953,9 +971,15 @@ const onCheck = (checked: string[], info: any) => {
 // 处理批量删除
 const handleBatchDelete = async (keys: string[]) => {
   try {
-    // TODO: 调用后端API批量删除
-    message.success('删除成功')
-    fetchTree()
+    const response = await axios.post('/apiInfoCategory/deleteByIdList', {
+      apiInfoCategoryIdList: keys.map(key => Number(key))
+    })
+    if (response.data && response.data.code === 0) {
+      message.success('删除成功')
+      fetchTree()
+    } else {
+      message.error(response.data.message || '删除失败')
+    }
   } catch (error) {
     console.error('删除失败:', error)
     message.error('删除失败，请稍后重试')
@@ -965,9 +989,16 @@ const handleBatchDelete = async (keys: string[]) => {
 // 处理发布
 const handlePublish = async (keys: string[]) => {
   try {
-    // TODO: 调用后端API发布
-    message.success('发布成功')
-    fetchTree()
+    const response = await axios.post('/apiInfoCategory/update/status/batch', {
+      apiInfoCategoryIdList: keys.map(key => Number(key)),
+      status: 2  // 发布状态为2
+    })
+    if (response.data && response.data.code === 0) {
+      message.success('发布成功')
+      fetchTree()
+    } else {
+      message.error(response.data.message || '发布失败')
+    }
   } catch (error) {
     console.error('发布失败:', error)
     message.error('发布失败，请稍后重试')
@@ -977,14 +1008,80 @@ const handlePublish = async (keys: string[]) => {
 // 处理下架
 const handleUnpublish = async (keys: string[]) => {
   try {
-    // TODO: 调用后端API下架
-    message.success('下架成功')
-    fetchTree()
+    const response = await axios.post('/apiInfoCategory/update/status/batch', {
+      apiInfoCategoryIdList: keys.map(key => Number(key)),
+      status: 1  // 下架状态为1
+    })
+    if (response.data && response.data.code === 0) {
+      message.success('下架成功')
+      fetchTree()
+    } else {
+      message.error(response.data.message || '下架失败')
+    }
   } catch (error) {
     console.error('下架失败:', error)
     message.error('下架失败，请稍后重试')
   }
 }
+
+// 添加一个计算属性来判断是否包含分类节点
+const hasCategoryNode = computed(() => {
+  const checkNode = (node: any): boolean => {
+    if (node.type === 1) return true
+    if (node.children && node.children.length > 0) {
+      return node.children.some((child: any) => checkNode(child))
+    }
+    return false
+  }
+  return checkedKeys.value.some(key => {
+    const node = findNodeByKey(treeData.value, key)
+    return node && checkNode(node)
+  })
+})
+
+// 添加一个辅助函数来查找节点
+const findNodeByKey = (nodes: any[], key: string): any => {
+  for (const node of nodes) {
+    if (node.key === key) return node
+    if (node.children && node.children.length > 0) {
+      const found = findNodeByKey(node.children, key)
+      if (found) return found
+    }
+  }
+  return null
+}
+
+// 添加一个计算属性来过滤父级节点树
+const filteredTreeData = computed(() => {
+  if (modalType.value !== 'edit' || !currentNode.value) {
+    return treeData.value
+  }
+
+  const filterNode = (node: any): any => {
+    // 如果是当前节点，返回null（过滤掉）
+    if (node.key === currentNode.value?.key) {
+      return null
+    }
+
+    // 如果有子节点，递归过滤
+    if (node.children && node.children.length > 0) {
+      const filteredChildren = node.children
+        .map((child: any) => filterNode(child))
+        .filter(Boolean)
+      
+      return {
+        ...node,
+        children: filteredChildren
+      }
+    }
+
+    return node
+  }
+
+  return treeData.value
+    .map(node => filterNode(node))
+    .filter(Boolean)
+})
 
 onMounted(() => {
   fetchTree()
@@ -1075,7 +1172,12 @@ onMounted(() => {
 }
 
 .node-actions {
-  padding-left: 8px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.tree-node-content:hover .node-actions {
+  opacity: 1;
 }
 
 :deep(.ant-dropdown-link) {
