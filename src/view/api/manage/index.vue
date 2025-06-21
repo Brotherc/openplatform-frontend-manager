@@ -145,6 +145,13 @@
                   </a-form-item>
                 </a-col>
                 <a-col :span="12">
+                  <a-form-item label="请求前缀">
+                    <a-input v-model:value="apiForm.reqContextPath" placeholder="请输入请求前缀" />
+                  </a-form-item>
+                </a-col>
+              </a-row>
+              <a-row :gutter="16">
+                <a-col :span="24">
                   <a-form-item label="请求路径">
                     <a-input v-model:value="apiForm.path" placeholder="请输入请求路径" />
                   </a-form-item>
@@ -483,7 +490,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
 import {
   PlusOutlined,
@@ -529,6 +536,7 @@ interface ApiForm {
   name: string
   nameCn: string
   method: string
+  reqContextPath: string
   path: string
   description: string
 }
@@ -569,6 +577,7 @@ const apiForm = reactive<ApiForm>({
   name: '',
   nameCn: '',
   method: 'GET',
+  reqContextPath: '',
   path: '',
   description: ''
 })
@@ -886,6 +895,7 @@ const showCreateModal = () => {
 const handleEdit = (node: any) => {
   modalType.value = 'edit'
   currentNode.value = node
+  formState.id = node.key
   formState.type = node.type
   formState.name = node.title
   formState.parentId = node.parentId
@@ -959,40 +969,63 @@ const handleModalCancel = () => {
 }
 
 // 处理保存
-const handleSave = () => {
-  //formRef.value?.validate().then(() => {
-    // 获取最新的表格数据
-    const queryParamsData = tableRef.value?.getTableData().fullData || []
-    const queryParams = stripInternalFields(JSON.parse(JSON.stringify(queryParamsData)));
+const handleSave = async () => {
+  // 先切换到所有标签页来加载数据
+  const originalActiveKey = activeKey.value
+  
+  // 切换到Query参数标签页
+  activeKey.value = 'queryParam'
+  await nextTick()
+  
+  // 切换到Body参数标签页
+  activeKey.value = 'bodyParam'
+  await nextTick()
+  
+  // 切换到Path参数标签页
+  activeKey.value = 'pathParam'
+  await nextTick()
+  
+  // 切换到响应体标签页
+  activeKey.value = 'responseBody'
+  await nextTick()
+  
+  // 恢复原来的标签页
+  activeKey.value = originalActiveKey
+  await nextTick()
 
-    const requestBodyData = bodyTableRef.value?.getTableData().fullData || []
-    const requestBody = stripInternalFields(JSON.parse(JSON.stringify(requestBodyData)));
+  // 获取最新的表格数据
+  const queryParamsData = tableRef.value?.getTableData().fullData || []
+  const queryParam = stripInternalFields(JSON.parse(JSON.stringify(queryParamsData)));
 
-    const pathParamData = pathTableRef.value?.getTableData().fullData || []
-    const pathParam = stripInternalFields(JSON.parse(JSON.stringify(pathParamData)));
+  const requestBodyData = bodyTableRef.value?.getTableData().fullData || []
+  const requestBody = stripInternalFields(JSON.parse(JSON.stringify(requestBodyData)));
 
-    const responseBodyData = responseTableRef.value?.getTableData().fullData || []
-    const responseBody = stripInternalFields(JSON.parse(JSON.stringify(responseBodyData)));
+  const pathParamData = pathTableRef.value?.getTableData().fullData || []
+  const pathParam = stripInternalFields(JSON.parse(JSON.stringify(pathParamData)));
 
-    // 打印所有表单数据
-    console.log('API详情表单数据:', {
-      // 基本信息
-      name: apiForm.name,
-      nameCn: apiForm.nameCn,
-      method: apiForm.method,
-      path: apiForm.path,
-      description: apiForm.description,
-      // 请求参数
-      queryParams: queryParams,
-      pathParam: pathParam,
-      // 请求体
-      requestBody: requestBody,
-      // 响应体
-      responseBody: responseBody
-    })
-    message.success('保存成功')
-    fetchTree()
-  //})
+  const responseBodyData = responseTableRef.value?.getTableData().fullData || []
+  const responseBody = stripInternalFields(JSON.parse(JSON.stringify(responseBodyData)));
+
+  // 打印所有表单数据
+  console.log('API详情表单数据:', {
+    // 基本信息
+    name: apiForm.name,
+    cnName: apiForm.nameCn,
+    reqMethod: apiForm.method,
+    reqContextPath: apiForm.reqContextPath,
+    reqPath: apiForm.path,
+    description: apiForm.description,
+    apiInfoCategoryId: selectedApi.value?.key,
+    // 请求参数
+    queryParam: queryParam,
+    pathParam: pathParam,
+    // 请求体
+    requestBody: requestBody,
+    // 响应体
+    responseBody: responseBody
+  })
+  message.success('保存成功')
+  fetchTree()
 }
 
 // 处理勾选
