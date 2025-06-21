@@ -106,7 +106,7 @@
         <div class="api-detail" v-if="selectedApi">
           <div class="detail-header">
             <div class="detail-actions">
-              <a-button type="primary" @click="handleSaveApi">保存</a-button>
+              <a-button type="primary" @click="handleSave">保存</a-button>
             </div>
           </div>
           <div class="detail-content">
@@ -631,7 +631,7 @@ const findList = (type: string) => {
       if (type == null || type === 'param') {
         tableData.value = [
           { id: 10000, parentId: null, name: 'vxe-table test abc1', type: 'integer', required: true, example:"", description:""},
-          { id: 10050, parentId: null, name: 'Test2', type: 'integer', required: true,  example:"", description:""},
+          { id: 10050, parentId: null, name: 'Test2', type: 'object', required: true,  example:"", description:""},
           { id: 24300, parentId: 10050, name: 'Test3', type: 'float', required: true,  example:"", description:""}
         ]
       }
@@ -643,14 +643,14 @@ const findList = (type: string) => {
       }
       if (type == null || type === 'body') {
         bodyTableData.value = [
-          { id: 10000, parentId: null, name: 'vxe-table test abc1', type: 'integer', required: true, example:"", description:""},
+          { id: 10000, parentId: null, name: 'vxe-table test abc1', type: 'object', required: true, example:"", description:""},
           { id: 10050, parentId: 10000, name: 'Test2', type: 'integer', required: true,  example:"", description:""},
           { id: 24300, parentId: 10000, name: 'Test3', type: 'float', required: true,  example:"", description:""}
         ]
       }
       if (type == null || type === 'response') {
         responseTableData.value = [
-          { id: 10000, parentId: null, name: 'vxe-table test abc1', type: 'integer', required: true, example:"", description:""},
+          { id: 10000, parentId: null, name: 'vxe-table test abc1', type: 'object', required: true, example:"", description:""},
           { id: 10050, parentId: 10000, name: 'Test2', type: 'integer', required: true,  example:"", description:""},
           { id: 24300, parentId: 10000, name: 'Test3', type: 'float', required: true,  example:"", description:""}
         ]
@@ -669,6 +669,16 @@ const searchMethod = (type: string) => {
     return findList(type)
   }
   return Promise.resolve()
+}
+
+const stripInternalFields = (data: any[]): any[] => {
+  return data.map(row => {
+    const { _X_ROW_CHILD, id, parentId, ...rest } = row;
+    if (_X_ROW_CHILD && Array.isArray(_X_ROW_CHILD)) {
+      rest.children = stripInternalFields(_X_ROW_CHILD);
+    }
+    return rest;
+  });
 }
 
 const insertRow = async (type: string, currRow: RowVO, locat: string) => {
@@ -948,18 +958,41 @@ const handleModalCancel = () => {
   modalVisible.value = false
 }
 
-// 保存API
-const handleSaveApi = async () => {
-  if (!selectedApi.value) return
-  checkParam()
-  try {
-    // TODO: 调用后端API保存
+// 处理保存
+const handleSave = () => {
+  //formRef.value?.validate().then(() => {
+    // 获取最新的表格数据
+    const queryParamsData = tableRef.value?.getTableData().fullData || []
+    const queryParams = stripInternalFields(JSON.parse(JSON.stringify(queryParamsData)));
+
+    const requestBodyData = bodyTableRef.value?.getTableData().fullData || []
+    const requestBody = stripInternalFields(JSON.parse(JSON.stringify(requestBodyData)));
+
+    const pathParamData = pathTableRef.value?.getTableData().fullData || []
+    const pathParam = stripInternalFields(JSON.parse(JSON.stringify(pathParamData)));
+
+    const responseBodyData = responseTableRef.value?.getTableData().fullData || []
+    const responseBody = stripInternalFields(JSON.parse(JSON.stringify(responseBodyData)));
+
+    // 打印所有表单数据
+    console.log('API详情表单数据:', {
+      // 基本信息
+      name: apiForm.name,
+      nameCn: apiForm.nameCn,
+      method: apiForm.method,
+      path: apiForm.path,
+      description: apiForm.description,
+      // 请求参数
+      queryParams: queryParams,
+      pathParam: pathParam,
+      // 请求体
+      requestBody: requestBody,
+      // 响应体
+      responseBody: responseBody
+    })
     message.success('保存成功')
     fetchTree()
-  } catch (error) {
-    console.error('保存失败:', error)
-    message.error('保存失败，请稍后重试')
-  }
+  //})
 }
 
 // 处理勾选
