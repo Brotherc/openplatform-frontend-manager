@@ -163,7 +163,7 @@
                   <a-form-item label="请求参数">
                       <a-tabs v-model:activeKey="activeKey">
                         <a-tab-pane key="queryParam" tab="Query参数">
-                          <a-space>
+                          <a-space style="margin-bottom: 16px;">
                             <a-button @click="insertParamEvent('param')">新增</a-button>
                             <a-button @click="searchMethod('param')">刷新</a-button>
                           </a-space>
@@ -228,7 +228,7 @@
                           </vxe-table>
                         </a-tab-pane>
                         <a-tab-pane key="bodyParam" tab="Body">
-                          <a-space>
+                          <a-space style="margin-bottom: 16px;">
                             <a-button @click="insertParamEvent('body')">新增</a-button>
                             <a-button @click="searchMethod('body')">刷新</a-button>
                           </a-space>
@@ -294,7 +294,7 @@
                           </vxe-table>
                         </a-tab-pane>
                         <a-tab-pane key="pathParam" tab="Path参数">
-                          <a-space>
+                          <a-space style="margin-bottom: 16px;">
                             <a-button @click="insertParamEvent('path')">新增</a-button>
                             <a-button @click="searchMethod('path')">刷新</a-button>
                           </a-space>
@@ -366,7 +366,7 @@
                 <a-col :span="24">
                   <a-form-item label="响应参数">
 
-                      <a-space>
+                      <a-space style="margin-bottom: 16px;">
                         <a-button @click="insertParamEvent('response')">新增</a-button>
                         <a-button @click="searchMethod('response')">刷新</a-button>
                       </a-space>
