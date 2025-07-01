@@ -1006,8 +1006,8 @@ const handleSave = async () => {
   const responseBodyData = responseTableRef.value?.getTableData().fullData || []
   const responseBody = stripInternalFields(JSON.parse(JSON.stringify(responseBodyData)));
 
-  // 打印所有表单数据
-  console.log('API详情表单数据:', {
+  // 准备提交的数据
+  const submitData = {
     // 基本信息
     name: apiForm.name,
     cnName: apiForm.nameCn,
@@ -1019,13 +1019,28 @@ const handleSave = async () => {
     // 请求参数
     queryParam: queryParam,
     pathParam: pathParam,
-    // 请求体
-    requestBody: requestBody,
-    // 响应体
-    responseBody: responseBody
-  })
-  message.success('保存成功')
-  fetchTree()
+    // 请求体 - 只取第一个元素
+    requestBody: requestBody.length > 0 ? requestBody[0] : null,
+    // 响应体 - 只取第一个元素
+    responseBody: responseBody.length > 0 ? responseBody[0] : null
+  }
+
+  // 打印所有表单数据
+  console.log('API详情表单数据:', submitData)
+
+  try {
+    // 调用保存API信息的接口
+    const response = await axios.post('/apiInfo/save', submitData)
+    if (response.data && response.data.code === 0) {
+      message.success('保存成功')
+      fetchTree()
+    } else {
+      message.error(response.data.message || '保存失败')
+    }
+  } catch (error) {
+    console.error('保存失败:', error)
+    message.error('保存失败，请稍后重试')
+  }
 }
 
 // 处理勾选
