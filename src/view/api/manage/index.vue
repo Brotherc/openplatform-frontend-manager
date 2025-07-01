@@ -866,16 +866,80 @@ const fetchTree = async () => {
   }
 }
 
-// 选择节点
+// 工具函数：将树结构平铺为数组，并生成唯一id和parentId
+function flattenTreeWithId(tree, parentId = null, idSet = new Set()) {
+  const flat = []
+  function genId() {
+    let id
+    do {
+      id = Math.random().toString(36).slice(2, 10) + Date.now().toString(36)
+    } while (idSet.has(id))
+    idSet.add(id)
+    return id
+  }
+  function walk(nodes, parentId) {
+    nodes.forEach(node => {
+      const newNode = { ...node }
+      newNode.id = genId()
+      newNode.parentId = parentId
+      if (newNode.children && Array.isArray(newNode.children) && newNode.children.length > 0) {
+        const children = newNode.children
+        delete newNode.children
+        flat.push(newNode)
+        walk(children, newNode.id)
+      } else {
+        delete newNode.children
+        flat.push(newNode)
+      }
+    })
+  }
+  walk(tree, parentId)
+  return flat
+}
+
+// 查询API详情并填充表单
+const fetchApiDetail = async (apiInfoCategoryId: string | number) => {
+  try {
+    const response = await axios.get('/apiInfo/getByApiInfoCategoryId', {
+      params: { apiInfoCategoryId }
+    })
+    if (response.data && response.data.code === 0 && response.data.data) {
+      const detail = response.data.data
+      // 填充表单
+      apiForm.name = detail.name || ''
+      apiForm.nameCn = detail.cnName || ''
+      apiForm.method = detail.reqMethod || 'GET'
+      apiForm.reqContextPath = detail.reqContextPath || ''
+      apiForm.path = detail.reqPath || ''
+      apiForm.description = detail.description || ''
+      // 平铺参数表格
+      tableData.value = flattenTreeWithId(detail.queryParam || [])
+      pathTableData.value = flattenTreeWithId(detail.pathParam || [])
+      bodyTableData.value = flattenTreeWithId(detail.requestBody || [])
+      responseTableData.value = flattenTreeWithId(detail.responseBody || [])
+    } else {
+      // 没有数据时清空表单
+      apiForm.name = ''
+      apiForm.nameCn = ''
+      apiForm.method = 'GET'
+      apiForm.reqContextPath = ''
+      apiForm.path = ''
+      apiForm.description = ''
+      tableData.value = []
+      pathTableData.value = []
+      bodyTableData.value = []
+      responseTableData.value = []
+    }
+  } catch (error) {
+    message.error('获取API详情失败')
+  }
+}
+
+// 修改onSelect事件，点击API节点时查询详情
 const onSelect = (selectedKeys: string[], info: any) => {
-  const node = info.node
-  if (node.dataRef.type === 2) {
-    selectedApi.value = node.dataRef
-    apiForm.name = node.dataRef.name || ''
-    apiForm.nameCn = node.dataRef.nameCn || ''
-    apiForm.method = node.dataRef.method || 'GET'
-    apiForm.path = node.dataRef.path || ''
-    apiForm.description = node.dataRef.description || ''
+  if (info.selected && info.node.type === 2) {
+    selectedApi.value = info.node
+    fetchApiDetail(info.node.key)
   } else {
     selectedApi.value = null
   }
@@ -1166,7 +1230,7 @@ const filteredTreeData = computed(() => {
 
 onMounted(() => {
   fetchTree()
-  findList()
+  //findList()
 })
 </script>
 
