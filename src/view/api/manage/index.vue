@@ -633,49 +633,11 @@ const pathTableRef = ref<VxeTableInstance<RowVO>>()
 const bodyTableRef = ref<VxeTableInstance<RowVO>>()
 const responseTableRef = ref<VxeTableInstance<RowVO>>()
 
-const findList = (type: string) => {
-  loading.value = true
-  return new Promise(resolve => {
-    setTimeout(() => {
-      if (type == null || type === 'param') {
-        tableData.value = [
-          { id: 10000, parentId: null, name: 'vxe-table test abc1', type: 'integer', required: true, example:"", description:""},
-          { id: 10050, parentId: null, name: 'Test2', type: 'object', required: true,  example:"", description:""},
-          { id: 24300, parentId: 10050, name: 'Test3', type: 'float', required: true,  example:"", description:""}
-        ]
-      }
-      if (type == null || type === 'path') {
-        pathTableData.value = [
-          { id: 10000, parentId: null, name: 'vxe-table test abc1', type: 'integer', required: true, example:"", description:""},
-          { id: 10050, parentId: null, name: 'Test2', type: 'integer', required: true,  example:"", description:""}
-        ]
-      }
-      if (type == null || type === 'body') {
-        bodyTableData.value = [
-          { id: 10000, parentId: null, name: 'vxe-table test abc1', type: 'object', required: true, example:"", description:""},
-          { id: 10050, parentId: 10000, name: 'Test2', type: 'integer', required: true,  example:"", description:""},
-          { id: 24300, parentId: 10000, name: 'Test3', type: 'float', required: true,  example:"", description:""}
-        ]
-      }
-      if (type == null || type === 'response') {
-        responseTableData.value = [
-          { id: 10000, parentId: null, name: 'vxe-table test abc1', type: 'object', required: true, example:"", description:""},
-          { id: 10050, parentId: 10000, name: 'Test2', type: 'integer', required: true,  example:"", description:""},
-          { id: 24300, parentId: 10000, name: 'Test3', type: 'float', required: true,  example:"", description:""}
-        ]
-      }
-      loading.value = false
-      resolve(null)
-    }, 300)
-  })
-}
-
 const searchMethod = (type: string) => {
   const $table = getTableRefByParamType(type)
   if ($table) {
     // 清除所有状态
     $table.clearAll()
-    return findList(type)
   }
   return Promise.resolve()
 }
@@ -1230,7 +1192,6 @@ const filteredTreeData = computed(() => {
 
 onMounted(() => {
   fetchTree()
-  //findList()
 })
 </script>
 
