@@ -130,6 +130,7 @@
 
       <!-- 右侧编辑区域 -->
       <a-col :span="18">
+        <!-- 文章编辑 -->
         <div class="editor-container" v-if="selectedArticle">
           <div class="editor-header">
             <a-space>
@@ -143,6 +144,56 @@
             <MdEditor v-model="selectedArticle.content" />
           </div>
         </div>
+        
+        <!-- API详情展示 -->
+        <div class="api-detail-container" v-if="apiDetail">
+          <div class="api-title">
+            <span class="api-title-main">{{ apiDetail.name }}</span>
+            <span class="api-title-cn">{{ apiDetail.cnName }}</span>
+          </div>
+          <div class="api-title-desc">{{ apiDetail.description }}</div>
+
+          <div class="api-section">
+            <div class="api-section-title">请求参数</div>
+            <a-table
+              :columns="paramColumns"
+              :data-source="apiDetail.reqParamDisplayJson"
+              :pagination="false"
+              :show-header="true"
+              :bordered="false"
+              size="middle"
+              :row-key="record => record.name"
+              :expandable="{ childrenColumnName: 'children' }"
+            >
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.key === 'required'">
+                  {{ record.required ? '是' : '否' }}
+                </template>
+              </template>
+            </a-table>
+          </div>
+
+          <div class="api-section">
+            <div class="api-section-title">响应参数</div>
+            <a-table
+              :columns="paramColumns"
+              :data-source="apiDetail.returnInfoDisplayJson"
+              :pagination="false"
+              :show-header="true"
+              :bordered="false"
+              size="middle"
+              :row-key="record => record.name"
+              :expandable="{ childrenColumnName: 'children' }"
+            >
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.key === 'required'">
+                  {{ record.required ? '是' : '否' }}
+                </template>
+              </template>
+            </a-table>
+          </div>
+        </div>
+        
         <div class="empty-container" v-else>
           <a-empty description="请选择或创建一篇文章" />
         </div>
@@ -168,6 +219,7 @@
           <a-radio-group v-model:value="formState.type" :disabled="modalType === 'edit'">
             <a-radio :value="1">目录</a-radio>
             <a-radio :value="2">文章</a-radio>
+            <a-radio :value="3">API</a-radio>
           </a-radio-group>
         </a-form-item>
         <a-form-item label="父级节点" name="parentId">
@@ -179,6 +231,19 @@
             placeholder="请选择父级节点"
             :field-names="{ label: 'title', value: 'key', children: 'children' }"
             :tree-default-expand-all="true"
+            allowClear
+          />
+        </a-form-item>
+        <a-form-item v-if="formState.type === 3" label="关联API节点" name="apiInfoCategoryId">
+          <a-tree-select
+            v-model:value="formState.apiInfoCategoryId"
+            style="width: 100%"
+            :dropdown-style="{ maxHeight: '400px', overflow: 'auto' }"
+            :tree-data="apiTreeData"
+            placeholder="请选择API节点"
+            :field-names="{ label: 'title', value: 'key', children: 'children' }"
+            :tree-default-expand-all="true"
+            :loading="apiTreeLoading"
             allowClear
           />
         </a-form-item>
@@ -205,6 +270,9 @@ import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 import axios from 'axios'
 
+// 配置axios默认值
+axios.defaults.baseURL = 'http://127.0.0.1:8080'
+
 interface Group {
   id: string
   name: string
@@ -213,7 +281,7 @@ interface Group {
 interface TreeNode {
   key: string
   title: string
-  type: 1 | 2  // 1-目录，2-文章
+  type: 1 | 2 | 3  // 1-目录，2-文章，3-API
   children?: TreeNode[]
   parentKey?: string
   sort: number
@@ -224,17 +292,18 @@ interface Article {
   id: string
   title: string
   content: string
-  type: 1 | 2  // 1-目录，2-文章
+  type: 1 | 2 | 3  // 1-目录，2-文章，3-API
   parentId?: string
   sort: number
 }
 
 interface FormState {
-  type: 1 | 2  // 1-目录，2-文章
+  type: 1 | 2 | 3  // 1-目录，2-文章，3-API
   title: string
   sort: number
   parentId?: string
   docCatalogId?: string  // 添加主键字段
+  apiInfoCategoryId?: string  // 添加API节点主键字段
 }
 
 // 状态定义
@@ -249,10 +318,52 @@ const modalType = ref<'create' | 'edit'>('create')
 const formRef = ref()
 const deleteConfirmVisible = ref(false)
 
+// API树相关
+const apiTreeData = ref([])
+const apiTreeLoading = ref(false)
+
+// API详情相关
+const apiDetail = ref(null)
+const apiDetailLoading = ref(false)
+const currentApiDocCatalogId = ref<string | null>(null)
+
+// 获取API详情
+const fetchApiDetail = async (docCatalogId: string) => {
+  currentApiDocCatalogId.value = docCatalogId
+  apiDetailLoading.value = true
+  try {
+    const response = await axios.get('/docCatalog/getApiInfoById', {
+      params: { docCatalogId }
+    })
+    if (response.data && response.data.code === 0 && response.data.data) {
+      apiDetail.value = response.data.data
+    } else {
+      apiDetail.value = null
+      message.error(response.data.message || '获取API详情失败')
+    }
+  } catch (error) {
+    console.error('获取API详情失败:', error)
+    message.error('获取API详情失败，请稍后重试')
+    apiDetail.value = null
+  } finally {
+    apiDetailLoading.value = false
+  }
+}
+
+// 参数表格列定义
+const paramColumns = [
+  { title: '参数名', dataIndex: 'name', key: 'name', width: 180 },
+  { title: '类型', dataIndex: 'type', key: 'type', width: 120 },
+  { title: '是否必填', dataIndex: 'required', key: 'required', width: 100 },
+  { title: '示例值', dataIndex: 'example', key: 'example', width: 120 },
+  { title: '描述', dataIndex: 'description', key: 'description' }
+]
+
 const formState = reactive<FormState>({
   type: 2,  // 默认创建文章
   title: '',
   sort: 0,
+  apiInfoCategoryId: undefined
 })
 
 const rules = {
@@ -260,6 +371,9 @@ const rules = {
   title: [{ required: true, message: '请输入标题' }],
   sort: [{ required: true, message: '请输入排序号' }],
   parentId: [],
+  apiInfoCategoryId: [
+    { required: true, message: '请选择关联API节点', trigger: 'change' }
+  ]
 }
 
 // 获取分组列表
@@ -297,12 +411,59 @@ const fetchDocTree = async () => {
     
     if (response.data.code === 0) {
       treeData.value = response.data.data
+      // 检查右侧详情是否还在树中
+      if (
+        currentApiDocCatalogId.value &&
+        !findNodeInTree(treeData.value, currentApiDocCatalogId.value)
+      ) {
+        apiDetail.value = null
+        currentApiDocCatalogId.value = null
+      }
     } else {
       message.error(response.data.message || '获取文档树失败')
     }
   } catch (error) {
     console.error('获取文档树失败:', error)
     message.error('获取文档树失败，请稍后重试')
+  }
+}
+
+function findNodeInTree(tree, key) {
+  for (const node of tree) {
+    if (String(node.key) === String(key)) return true
+    if (node.children && findNodeInTree(node.children, key)) return true
+  }
+  return false
+}
+
+// 处理apiTreeData，只允许type为2的节点可选
+function processApiTreeForSelect(tree) {
+  return (tree || []).map(node => {
+    const newNode = { ...node }
+    if (newNode.type !== 2) {
+      newNode.disabled = true
+    }
+    if (newNode.children && newNode.children.length > 0) {
+      newNode.children = processApiTreeForSelect(newNode.children)
+    }
+    return newNode
+  })
+}
+
+// 获取API树
+const fetchApiTree = async () => {
+  apiTreeLoading.value = true
+  try {
+    const response = await axios.get('/apiInfoCategory/getTree')
+    if (response.data && response.data.code === 0) {
+      apiTreeData.value = processApiTreeForSelect(response.data.data)
+    } else {
+      message.error(response.data.message || '获取API树失败')
+    }
+  } catch (error) {
+    message.error('获取API树失败')
+  } finally {
+    apiTreeLoading.value = false
   }
 }
 
@@ -313,18 +474,46 @@ watch(selectedGroup, (newValue) => {
   }
 })
 
+// 监听弹窗打开和类型变化，类型为API时拉取API树
+watch([modalVisible, () => formState.type], ([visible, type]) => {
+  if (visible && type === 3) {
+    fetchApiTree()
+  }
+})
+
+// 选择api节点时自动填充标题
+watch(() => formState.apiInfoCategoryId, (val) => {
+  if (formState.type === 3 && val && !formState.title) {
+    // 在apiTreeData中查找title
+    function findTitle(nodes, key) {
+      for (const node of nodes) {
+        if (node.key === key) return node.title
+        if (node.children) {
+          const t = findTitle(node.children, key)
+          if (t) return t
+        }
+      }
+      return ''
+    }
+    const title = findTitle(apiTreeData.value, val)
+    if (title) formState.title = title
+  }
+})
+
 // 处理分组变更
 const handleGroupChange = (value: string) => {
   selectedGroup.value = value
   selectedKeys.value = []
   checkedKeys.value = []
   selectedArticle.value = null
+  apiDetail.value = null
 }
 
 // 选择节点
 const onSelect = async (selectedKeys: string[], info: any) => {
   if (selectedKeys.length === 0) {
     selectedArticle.value = null;
+    apiDetail.value = null;
     return;
   }
   const node = info.node
@@ -345,6 +534,7 @@ const onSelect = async (selectedKeys: string[], info: any) => {
           sort: node.dataRef.sort,
           parentId: node.dataRef.parentKey,
         }
+        apiDetail.value = null
       } else {
         message.error(response.data.message || '获取文章详情失败')
         selectedArticle.value = null;
@@ -354,8 +544,12 @@ const onSelect = async (selectedKeys: string[], info: any) => {
       message.error('获取文章详情失败，请稍后重试')
       selectedArticle.value = null;
     }
+  } else if (node.dataRef.type === 3) {  // 3 表示API
+    selectedArticle.value = null
+    fetchApiDetail(node.dataRef.key)
   } else {
     selectedArticle.value = null
+    apiDetail.value = null
   }
 }
 
@@ -377,11 +571,12 @@ const showCreateModal = () => {
   formState.title = ''
   formState.sort = 0
   formState.parentId = undefined
+  formState.apiInfoCategoryId = undefined
   modalVisible.value = true
 }
 
 // 处理编辑
-const handleEdit = (node: any) => {
+const handleEdit = async (node: any) => {
   console.log('handleEdit called with node:', node);
   if (!node) {
     console.error('No node data provided');
@@ -394,6 +589,20 @@ const handleEdit = (node: any) => {
   formState.sort = node.sort;
   formState.parentId = node.parentKey;
   formState.type = node.type;
+  if (node.type === 3) {
+    try {
+      const response = await axios.get('/docCatalog/getApiInfoById', { params: { docCatalogId: node.key } });
+      if (response.data && response.data.code === 0 && response.data.data) {
+        formState.apiInfoCategoryId = response.data.data.apiInfoCategoryId;
+      } else {
+        formState.apiInfoCategoryId = undefined;
+      }
+    } catch (e) {
+      formState.apiInfoCategoryId = undefined;
+    }
+  } else {
+    formState.apiInfoCategoryId = undefined;
+  }
   modalVisible.value = true;
   console.log('Form state after setting:', formState);
 }
@@ -408,10 +617,14 @@ const handleDelete = async (keys: string[]) => {
     const response = await axios.post('http://127.0.0.1:8080/docCatalog/deleteByIdList', {
       docCatalogIdList: keys
     })
-    
     if (response.data.code === 0) {
       message.success('删除成功')
       fetchDocTree()
+      // 如果当前右侧显示的apiDetail被删除了，清空右侧
+      if (currentApiDocCatalogId.value && keys.includes(String(currentApiDocCatalogId.value))) {
+        apiDetail.value = null
+        currentApiDocCatalogId.value = null
+      }
     } else {
       message.error(response.data.message || '删除失败')
     }
@@ -484,19 +697,19 @@ const handleModalOk = async () => {
   try {
     await formRef.value.validate()
   } catch (error) {
-    // 表单校验失败，直接返回
     return
   }
 
   try {
     if (modalType.value === 'create') {
       // 创建节点
-      const response = await axios.post('http://127.0.0.1:8080/docCatalog/add', {
+      const response = await axios.post('/docCatalog/add', {
         name: formState.title,
         docCatalogGroupId: selectedGroup.value,
         parentId: formState.parentId,
         type: formState.type,
-        sort: formState.sort
+        sort: formState.sort,
+        apiInfoCategoryId: formState.apiInfoCategoryId
       })
       
       if (response.data.code === 0) {
@@ -508,17 +721,22 @@ const handleModalOk = async () => {
       }
     } else {
       // 更新节点
-      const response = await axios.post('http://127.0.0.1:8080/docCatalog/updateById', {
-        docCatalogId: formState.docCatalogId,  // 使用正确的主键
+      const response = await axios.post('/docCatalog/updateById', {
+        docCatalogId: formState.docCatalogId,
         name: formState.title,
         parentId: formState.parentId,
-        sort: formState.sort
+        sort: formState.sort,
+        apiInfoCategoryId: formState.apiInfoCategoryId
       })
       
       if (response.data.code === 0) {
         message.success('更新成功')
         modalVisible.value = false
         fetchDocTree()
+        // 如果是API节点，刷新右侧API详情
+        if (formState.type === 3 && formState.docCatalogId) {
+          fetchApiDetail(formState.docCatalogId)
+        }
       } else {
         message.error(response.data.message || '更新失败')
       }
@@ -775,5 +993,42 @@ onMounted(() => {
 
 :deep(.ant-space-item) {
   margin-right: 8px;
+}
+
+.api-detail-container {
+  background: #fff;
+  padding: 32px 32px 24px 32px;
+  border-radius: 4px;
+  min-height: 100%;
+}
+.api-title {
+  margin-bottom: 4px;
+}
+.api-title-main {
+  font-size: 28px;
+  font-weight: bold;
+  margin-right: 16px;
+}
+.api-title-cn {
+  color: #888;
+  font-size: 20px;
+  margin-left: 0;
+  vertical-align: middle;
+  position: relative;
+  top: -4px;
+}
+.api-title-desc {
+  color: #888;
+  font-size: 16px;
+  margin-bottom: 32px;
+  margin-left: 2px;
+}
+.api-section {
+  margin-bottom: 32px;
+}
+.api-section-title {
+  font-weight: bold;
+  font-size: 18px;
+  margin-bottom: 12px;
 }
 </style> 

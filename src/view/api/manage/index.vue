@@ -973,8 +973,8 @@ const handleDelete = async (key: string) => {
       apiInfoCategoryId: Number(key)
     })
     if (response.data && response.data.code === 0) {
-      message.success('删除成功')
-      fetchTree()
+    message.success('删除成功')
+    fetchTree()
     } else {
       message.error(response.data.message || '删除失败')
     }
@@ -1000,10 +1000,10 @@ const handleModalOk = async () => {
         type: formState.type
       })
       if (response.data && response.data.code === 0) {
-        message.success('创建成功')
+      message.success('创建成功')
         modalVisible.value = false
         fetchTree()
-      } else {
+    } else {
         message.error(response.data.message || '创建失败')
       }
     } else {
@@ -1014,9 +1014,9 @@ const handleModalOk = async () => {
         parentId: formState.parentId ? Number(formState.parentId) : 0
       })
       if (response.data && response.data.code === 0) {
-        message.success('更新成功')
-        modalVisible.value = false
-        fetchTree()
+      message.success('更新成功')
+    modalVisible.value = false
+    fetchTree()
       } else {
         message.error(response.data.message || '更新失败')
       }
@@ -1084,7 +1084,7 @@ const handleSave = async () => {
     queryParam: queryParam,
     pathParam: pathParam,
     // 请求体 - 只取第一个元素
-    requestBody: requestBody.length > 0 ? requestBody[0] : null,
+    requestBody: requestBody.length > 0 ? requestBody[0] : {},
     // 响应体 - 只取第一个元素
     responseBody: responseBody.length > 0 ? responseBody[0] : null
   }
@@ -1096,8 +1096,8 @@ const handleSave = async () => {
     // 调用保存API信息的接口
     const response = await axios.post('/apiInfo/save', submitData)
     if (response.data && response.data.code === 0) {
-      message.success('保存成功')
-      fetchTree()
+    message.success('保存成功')
+    fetchTree()
     } else {
       message.error(response.data.message || '保存失败')
     }
@@ -1120,8 +1120,8 @@ const handleBatchDelete = async (keys: string[]) => {
       apiInfoCategoryIdList: keys.map(key => Number(key))
     })
     if (response.data && response.data.code === 0) {
-      message.success('删除成功')
-      fetchTree()
+    message.success('删除成功')
+    fetchTree()
     } else {
       message.error(response.data.message || '删除失败')
     }
@@ -1139,8 +1139,8 @@ const handlePublish = async (keys: string[]) => {
       status: 2  // 发布状态为2
     })
     if (response.data && response.data.code === 0) {
-      message.success('发布成功')
-      fetchTree()
+    message.success('发布成功')
+    fetchTree()
     } else {
       message.error(response.data.message || '发布失败')
     }
@@ -1158,8 +1158,8 @@ const handleUnpublish = async (keys: string[]) => {
       status: 1  // 下架状态为1
     })
     if (response.data && response.data.code === 0) {
-      message.success('下架成功')
-      fetchTree()
+    message.success('下架成功')
+    fetchTree()
     } else {
       message.error(response.data.message || '下架失败')
     }

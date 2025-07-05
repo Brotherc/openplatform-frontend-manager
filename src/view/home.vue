@@ -1,7 +1,7 @@
 <template>
   <a-layout style="min-height: 100vh">
     <a-layout-sider v-model:collapsed="collapsed" :trigger="null" collapsible>
-      <div class="logo" />
+      <div class="logo">开放平台</div>
       <a-menu
         v-model:selectedKeys="selectedKeys"
         v-model:openKeys="openKeys"
@@ -120,7 +120,14 @@ const handleMenuClick: MenuClickEventHandler = ({ key }) => {
 .logo {
   height: 32px;
   margin: 16px;
-  background: rgba(255, 255, 255, 0.3);
+  /* background: rgba(255, 255, 255, 0.3); */
+  color: #fff;
+  font-size: 22px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 1px;
 }
 
 .site-layout .site-layout-background {
