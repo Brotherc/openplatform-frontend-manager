@@ -67,6 +67,13 @@
             :field-names="{ children: 'children', label: 'name', value: 'menuId' }"
           />
         </a-form-item>
+        <a-form-item label="文档分组" name="docCatalogGroupId">
+          <a-select v-model:value="formData.docCatalogGroupId" placeholder="请选择文档分组" allow-clear>
+            <a-select-option v-for="item in docCatalogGroupList" :key="item.docCatalogGroupId" :value="item.docCatalogGroupId">
+              {{ item.name }}
+            </a-select-option>
+          </a-select>
+        </a-form-item>
         <a-form-item label="菜单图标" name="icon">
           <a-input v-model:value="formData.icon" placeholder="请输入菜单图标" />
         </a-form-item>
@@ -117,6 +124,7 @@ const formRef = ref<FormInstance>()
 
 const menuList = ref<MenuItem[]>([])
 const parentMenuOptions = ref<MenuItem[]>([])
+const docCatalogGroupList = ref<any[]>([])
 
 const pagination = reactive({
   current: 1,
@@ -135,7 +143,8 @@ const formData = reactive({
   sort: 0,
   status: 2,
   description: '',
-  parentId: null as number | null
+  parentId: null as number | null,
+  docCatalogGroupId: undefined
 })
 
 const rules = {
@@ -301,6 +310,7 @@ const showAddModal = async () => {
   modalVisible.value = true
   resetForm()
   await fetchParentMenuTree()
+  await fetchDocCatalogGroupList()
 }
 
 // 显示编辑弹窗
@@ -315,10 +325,12 @@ const showEditModal = async (record: MenuItem) => {
     sort: record.sort,
     status: record.status,
     description: record.description,
-    parentId: record.parentId === 0 ? null : record.parentId
+    parentId: record.parentId === 0 ? null : record.parentId,
+    docCatalogGroupId: record.docCatalogGroupId
   })
-  // 获取父级菜单树
+  // 获取父级菜单树和分组列表
   await fetchParentMenuTree()
+  await fetchDocCatalogGroupList()
 }
 
 // 获取父级菜单树
@@ -336,6 +348,21 @@ const fetchParentMenuTree = async () => {
   }
 }
 
+// 获取文档分组列表
+const fetchDocCatalogGroupList = async () => {
+  try {
+    const res = await fetch('http://localhost:8080/docCatalogGroup/getList')
+    const data = await res.json()
+    if (data.code === 0) {
+      docCatalogGroupList.value = data.data || []
+    } else {
+      docCatalogGroupList.value = []
+    }
+  } catch (e) {
+    docCatalogGroupList.value = []
+  }
+}
+
 // 重置表单
 const resetForm = () => {
   Object.assign(formData, {
@@ -346,7 +373,8 @@ const resetForm = () => {
     sort: 0,
     status: 2,
     description: '',
-    parentId: null
+    parentId: null,
+    docCatalogGroupId: undefined
   })
   formRef.value?.resetFields()
 }
@@ -373,7 +401,8 @@ const handleSubmit = async () => {
           status: formData.status,
           path: formData.path,
           icon: formData.icon,
-          sort: formData.sort
+          sort: formData.sort,
+          docCatalogGroupId: formData.docCatalogGroupId
         })
       })
     } else {
@@ -390,7 +419,8 @@ const handleSubmit = async () => {
           status: formData.status,
           path: formData.path,
           icon: formData.icon,
-          sort: formData.sort
+          sort: formData.sort,
+          docCatalogGroupId: formData.docCatalogGroupId
         })
       })
     }
@@ -399,6 +429,7 @@ const handleSubmit = async () => {
     if (resJson.code === 0) {
       message.success(isEdit.value ? '编辑成功' : '新增成功')
       modalVisible.value = false
+      resetForm()
       fetchMenuList()
     } else {
       message.error(resJson.message || '操作失败')
