@@ -174,7 +174,7 @@
                               ref="tableRef"
                               :row-config="{keyField: 'id',drag: true}"
                               :loading="loading"
-                              :tree-config="{transform: true, rowField: 'id', parentField: 'parentId', expandAll: true}"
+                              :tree-config="{transform: true, rowField: 'id', parentField: 'parentId', expandAll: true, defaultExpandAll: true}"
                               :edit-rules=paramRules
                               :valid-config="{ msgMode: 'full', theme: 'normal' }"
                               :edit-config="{trigger: 'click', mode: 'row', showStatus: true}"
@@ -218,7 +218,7 @@
                                 <vxe-input v-model="row.description" mode="text"></vxe-input>
                               </template>
                             </vxe-column>
-                            <vxe-column title="操作" width="480">
+                            <vxe-column title="操作">
                               <template #default="{ row }">
                                 <a-button type="link" @click="insertNextRow('param', row, 'current')" :disabled="disableAddBrother('param', row)">添加相邻节点</a-button>
                                 <a-button type="link" @click="insertRow('param', row, 'bottom')" :disabled="disableAddChildren('param', row)">添加子节点</a-button>
@@ -239,7 +239,7 @@
                               ref="bodyTableRef"
                               :row-config="{keyField: 'id',drag: true}"
                               :loading="loading"
-                              :tree-config="{transform: true, rowField: 'id', parentField: 'parentId', expandAll: true}"
+                              :tree-config="{transform: true, rowField: 'id', parentField: 'parentId', expandAll: true, defaultExpandAll: true}"
                               :edit-rules=paramRules
                               :valid-config="{ msgMode: 'full', theme: 'normal' }"
                               :edit-config="{trigger: 'click', mode: 'row', showStatus: true}"
@@ -283,7 +283,7 @@
                                 <vxe-input v-model="row.description" mode="text"></vxe-input>
                               </template>
                             </vxe-column>
-                            <vxe-column title="操作" width="480">
+                            <vxe-column title="操作">
                               <template #default="{ row }">
                                 <a-button type="link" @click="insertNextRow('body', row, 'current')" :disabled="disableAddBrother('body', row)">添加相邻节点</a-button>
                                 <a-button type="link" @click="insertRow('body', row, 'bottom')" :disabled="disableAddChildren('body', row)">添加子节点</a-button>
@@ -305,7 +305,7 @@
                               ref="pathTableRef"
                               :row-config="{keyField: 'id',drag: true}"
                               :loading="loading"
-                              :tree-config="{transform: true, rowField: 'id', parentField: 'parentId', expandAll: true}"
+                              :tree-config="{transform: true, rowField: 'id', parentField: 'parentId', expandAll: true, defaultExpandAll: true}"
                               :edit-rules=paramRules
                               :valid-config="{ msgMode: 'full', theme: 'normal' }"
                               :edit-config="{trigger: 'click', mode: 'row', showStatus: true}"
@@ -349,7 +349,7 @@
                                 <vxe-input v-model="row.description" mode="text"></vxe-input>
                               </template>
                             </vxe-column>
-                            <vxe-column title="操作" width="480">
+                            <vxe-column title="操作">
                               <template #default="{ row }">
                                 <a-button type="link" @click="insertNextRow('path', row, 'current')">添加相邻节点</a-button>
                                 <a-button type="link" @click="removeRow('path', row)" danger>删除</a-button>
@@ -377,7 +377,7 @@
                           ref="responseTableRef"
                           :row-config="{keyField: 'id',drag: true}"
                           :loading="loading"
-                          :tree-config="{transform: true, rowField: 'id', parentField: 'parentId', expandAll: true}"
+                          :tree-config="{transform: true, rowField: 'id', parentField: 'parentId', expandAll: true, defaultExpandAll: true}"
                           :edit-rules=paramRules
                           :valid-config="{ msgMode: 'full', theme: 'normal' }"
                           :edit-config="{trigger: 'click', mode: 'row', showStatus: true}"
@@ -417,7 +417,7 @@
                             <vxe-input v-model="row.description" mode="text"></vxe-input>
                           </template>
                         </vxe-column>
-                        <vxe-column title="操作" width="480">
+                        <vxe-column title="操作">
                           <template #default="{ row }">
                             <a-space>
                               <a-button type="link" @click="insertNextRow('response', row, 'current')" :disabled="disableAddBrother('response', row)">添加相邻节点</a-button>
