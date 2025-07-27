@@ -131,6 +131,7 @@
             :step="1"
             :precision="0"
             placeholder="请输入排序号"
+            style="width: 100%"
           />
         </a-form-item>
       </a-form>
@@ -182,15 +183,15 @@ const columns = [
     ellipsis: true,
   },
   {
-    title: '排序',
-    dataIndex: 'sort',
-    key: 'sort',
-    width: 100,
-  },
-  {
     title: '状态',
     dataIndex: 'status',
     key: 'status',
+    width: 100,
+  },
+  {
+    title: '排序',
+    dataIndex: 'sort',
+    key: 'sort',
     width: 100,
   },
   {
