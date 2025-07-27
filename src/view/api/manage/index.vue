@@ -102,7 +102,7 @@
       </a-col>
 
       <!-- 右侧API详情 -->
-      <a-col :span="18">
+      <a-col :span="19">
         <div class="api-detail" v-if="selectedApi">
           <div class="detail-header">
             <div class="detail-actions">
@@ -1205,7 +1205,7 @@ onMounted(() => {
 
 .tree-container {
   background: #fff;
-  padding: 16px 0 16px 8px;
+  padding: 24px 16px 16px 16px;
   border-radius: 2px;
   height: 100%;
   display: flex;
@@ -1314,10 +1314,5 @@ onMounted(() => {
   flex: 0 0 300px;
   max-width: 300px;
   min-width: 300px;
-}
-
-:deep(.ant-col-18) {
-  flex: 1;
-  min-width: 400px;
 }
 </style> 
