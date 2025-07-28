@@ -778,7 +778,13 @@ const disableAddBrother = (type: string, row: RowVO): boolean => {
   const $table = getTableRefByParamType(type)
   if ($table) {
     const parentRow = $table.getParentRow(row)
-    return parentRow == null || parentRow.type === 'array'
+    if (parentRow != null && parentRow.type === 'array') {
+      return true;
+    }
+    if (type == 'body' || type == 'response') {
+      return parentRow == null
+    }
+    return false
   }
   return false
 }
@@ -1232,7 +1238,7 @@ onMounted(() => {
 
 .api-detail {
   background: #fff;
-  padding: 16px 0 16px 16px;
+  padding: 24px 0 16px 16px;
   border-radius: 2px;
   height: 100%;
   display: flex;
