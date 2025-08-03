@@ -151,6 +151,7 @@
         <div class="api-section">
           <div class="api-section-title">请求参数</div>
           <a-table
+            ref="reqParamTableRef"
             :columns="paramColumns"
             :data-source="apiDetail.reqParamDisplayJson"
             :pagination="false"
@@ -158,7 +159,10 @@
             :bordered="false"
             size="middle"
             :row-key="record => record.name"
-            :expandable="{ childrenColumnName: 'children' }"
+            :expandable="{ 
+              childrenColumnName: 'children'
+            }"
+            :expandedRowKeys="reqParamExpandedKeys"
           >
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'required'">
@@ -171,6 +175,7 @@
         <div class="api-section">
           <div class="api-section-title">响应参数</div>
           <a-table
+            ref="resParamTableRef"
             :columns="paramColumns"
             :data-source="apiDetail.returnInfoDisplayJson"
             :pagination="false"
@@ -178,7 +183,10 @@
             :bordered="false"
             size="middle"
             :row-key="record => record.name"
-            :expandable="{ childrenColumnName: 'children' }"
+            :expandable="{ 
+              childrenColumnName: 'children'
+            }"
+            :expandedRowKeys="resParamExpandedKeys"
           >
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'required'">
@@ -321,6 +329,25 @@ const apiTreeLoading = ref(false)
 const apiDetail = ref(null)
 const apiDetailLoading = ref(false)
 const currentApiDocCatalogId = ref<string | null>(null)
+const reqParamTableRef = ref()
+const resParamTableRef = ref()
+const reqParamExpandedKeys = ref<string[]>([])
+const resParamExpandedKeys = ref<string[]>([])
+
+// 获取所有展开键的函数
+const getAllExpandedKeys = (data: any[]): string[] => {
+  const keys: string[] = []
+  const traverse = (items: any[]) => {
+    items.forEach(item => {
+      if (item.children && item.children.length > 0) {
+        keys.push(item.name)
+        traverse(item.children)
+      }
+    })
+  }
+  traverse(data)
+  return keys
+}
 
 // 获取API详情
 const fetchApiDetail = async (docCatalogId: string) => {
@@ -332,6 +359,19 @@ const fetchApiDetail = async (docCatalogId: string) => {
     })
     if (response.data && response.data.code === 0 && response.data.data) {
       apiDetail.value = response.data.data
+      
+      // 手动触发展开所有节点
+      nextTick(() => {
+        // 对于Ant Design表格，通过设置expandedRowKeys来展开所有行
+        if (apiDetail.value?.reqParamDisplayJson) {
+          const reqParamKeys = getAllExpandedKeys(apiDetail.value.reqParamDisplayJson)
+          reqParamExpandedKeys.value = reqParamKeys
+        }
+        if (apiDetail.value?.returnInfoDisplayJson) {
+          const resParamKeys = getAllExpandedKeys(apiDetail.value.returnInfoDisplayJson)
+          resParamExpandedKeys.value = resParamKeys
+        }
+      })
     } else {
       apiDetail.value = null
       message.error(response.data.message || '获取API详情失败')
@@ -347,7 +387,7 @@ const fetchApiDetail = async (docCatalogId: string) => {
 
 // 参数表格列定义
 const paramColumns = [
-  { title: '参数名', dataIndex: 'name', key: 'name', width: 180 },
+  { title: '参数名', dataIndex: 'name', key: 'name', width: 280 },
   { title: '类型', dataIndex: 'type', key: 'type', width: 120 },
   { title: '是否必填', dataIndex: 'required', key: 'required', width: 100 },
   { title: '示例值', dataIndex: 'example', key: 'example', width: 120 },
