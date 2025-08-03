@@ -287,8 +287,7 @@
                               <template #default="{ row }">
                                 <a-button type="link" @click="insertNextRow('body', row, 'current')" :disabled="disableAddBrother('body', row)">添加相邻节点</a-button>
                                 <a-button type="link" @click="insertRow('body', row, 'bottom')" :disabled="disableAddChildren('body', row)">添加子节点</a-button>
-                                <a-button type="link" @click="removeRow('body', row)" danger>删除
-                                </a-button>
+                                <a-button type="link" @click="removeRow('body', row)" danger>删除</a-button>
                               </template>
                             </vxe-column>
                           </vxe-table>
@@ -419,11 +418,9 @@
                         </vxe-column>
                         <vxe-column title="操作">
                           <template #default="{ row }">
-                            <a-space>
-                              <a-button type="link" @click="insertNextRow('response', row, 'current')" :disabled="disableAddBrother('response', row)">添加相邻节点</a-button>
-                              <a-button type="link" @click="insertRow('response', row, 'bottom')" :disabled="disableAddChildren('response', row)">添加子节点</a-button>
-                              <a-button type="link" @click="removeRow('response', row)" danger>删除</a-button>
-                            </a-space>
+                            <a-button type="link" @click="insertNextRow('response', row, 'current')" :disabled="disableAddBrother('response', row)">添加相邻节点</a-button>
+                            <a-button type="link" @click="insertRow('response', row, 'bottom')" :disabled="disableAddChildren('response', row)">添加子节点</a-button>
+                            <a-button type="link" @click="removeRow('response', row)" danger>删除</a-button>
                           </template>
                         </vxe-column>
                       </vxe-table>
